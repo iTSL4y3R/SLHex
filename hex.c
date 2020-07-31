@@ -37,8 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 			  " ███████║███████╗██║  ██║███████╗██╔╝ ██╗\n" \
 			  " ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝"
 
-#define HELPINFO "To redirect the input use > [file]\n" \
-				 "width and read size should be numbers which are a power of two\n\n" \
+#define HELPINFO "To redirect the input use > [file]\n\n" \
 				 "Argument list:\n" \
 				 "\t-f [file] - specify the file\n" \
 				 "\t-w [width] - specify the width\n" \
@@ -167,7 +166,7 @@ void printTable(int width) {
 		putc('\n', stdout);
 	}
 	
-	uint64_t rowCount = floorl(size_hex / width);
+	uint64_t rowCount = ceil((float)size_hex / (float)width);
 
 	printf("Region: 0x%0" strmacro(ADDRESS_WIDTH) "lX - 0x%0" strmacro(ADDRESS_WIDTH) "lX (showing %lu bytes, omitting %lu bytes) -->", beg_out, beg_out + size_hex, size_hex, file_actual_size - size_hex);
 
@@ -190,16 +189,25 @@ void printTable(int width) {
 	for (uint64_t row = 0; row < rowCount; ++row) {
 		printf("0x%0" strmacro(ADDRESS_WIDTH) "X | ", (unsigned)(beg_out + width * row));
 		for (int col = 0; col < width; ++col) {
-			printf("%02X ", (unsigned char)hex[width * row + col]);
+			size_t elem = width * row + col;
+			if (elem <= size_hex)
+				printf("%02X ", (unsigned char)hex[elem]);
+			else
+				printf("%3c", ' ');
 		}
 		if (show_char) {
 			printf("| ");
 			for (int col = 0; col < width; ++col) {
-				char hex_char = hex[width * row + col];
-				if (hex_char < 32 || hex_char == 0x7F)
-					putc('.', stdout);
+				size_t elem = width * row + col;
+				char hex_char = hex[elem];
+				
+				if (elem <= size_hex)
+					if (hex_char < 32 || hex_char == 0x7F)
+						putc('.', stdout);
+					else
+						putc(hex_char, stdout);
 				else
-					putc(hex_char, stdout);
+					putc(' ', stdout);
 			}
 		}
 

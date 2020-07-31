@@ -1,5 +1,4 @@
-CFLAGS=-std=c99 -O2 -c
-LDFLAGS=-lm
+CFLAGS=-std=c99 -O2 -c -Wall -Wextra
 CC=gcc
 FILES=hex.c
 OBJECT=hex.o
@@ -9,8 +8,8 @@ EXEC=hex
 all: $(OBJECT) $(EXEC)
 $(OBJECT): $(FILE)
 	$(CC) $(CFLAGS) $(FILES)
-$(EXEC):
-	$(CC) $(LDFLAGS) $(OBJECT) -o $(EXEC)
+$(EXEC): $(OBJECT)
+	$(CC) $(OBJECT) -o $(EXEC)
 clear:
 	rm $(OBJECT)
 	rm $(EXEC)
