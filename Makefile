@@ -5,7 +5,7 @@ FILES=hex.c
 OBJECT=hex.o
 EXEC=hex
 
-.PHONY: all ld clear
+.PHONY: all clear
 all: $(OBJECT) $(EXEC)
 $(OBJECT): $(FILE)
 	$(CC) $(CFLAGS) $(FILES)
