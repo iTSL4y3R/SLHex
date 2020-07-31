@@ -121,6 +121,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 	printTable(width_out);
+	free(hex);
 
 	printf("File summary: %s | size: %lu | read: %lu\n", bin_file, file_actual_size, read_bytes);
 
@@ -151,6 +152,7 @@ int loadHex(char* path) {
 		exit(-1);
 	}
 	read_bytes = fread(hex, 1, size_hex, file);
+	fclose(file);
 
 	return 1;
 }
