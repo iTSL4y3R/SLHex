@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <math.h>
 
 #include <stdint.h>
+#include <stdarg.h>
 
 // Macros for messages
 
@@ -37,14 +38,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 			  " ███████║███████╗██║  ██║███████╗██╔╝ ██╗\n" \
 			  " ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝"
 
-#define HELPINFO "To redirect the input use > [file]\n\n" \
-				 "Argument list:\n" \
+#define HELPINFO "Argument list:\n" \
 				 "\t-f [file] - specify the file\n" \
 				 "\t-w [width] - specify the width\n" \
 				 "\t-b [offset] - specify the reading offset\n" \
 				 "\t-s [readsize] - specify the read size\n" \
+				 "\t-o [file]- output both to stdout and a file\n" \
 				 "\t-h - hide the ANSI representation\n" \
-				 "\t-l - hide SLHex (useless) logo."
+				 "\t-l - hide SLHex (useless) logo"
 
 #define FOPEN_ERR "An error occured while reading the file.\n"
 #define ARG_ERR "Undefined argument %s\n"
@@ -69,10 +70,38 @@ size_t read_bytes = 0; // How many bytes were actually read from the file
 
 uint8_t hidelogo = 0; // Hide the logo?
 
+FILE* output_stream = NULL; // where the output goes
+
 // Forward declarations 
 int  main(int argc, char** argv);
 int  loadHex(char*);
 void printTable(int width);
+
+//Functions to both output to stdout and a given file.
+
+static inline void stdputc(int ch, FILE* file) {
+	if (file) putc(ch, file);
+	putchar(ch);
+}
+
+static inline void stdputs(const char* string, FILE* file) {
+	if (file) fputs(string, file);
+	puts(string);
+}
+
+static inline void stdprintf(FILE* file, const char* fmt, ...) {
+	va_list arg;
+	
+	if (file) {
+		va_start(arg, fmt);
+		vfprintf(file, fmt, arg);
+		va_end(arg);
+	}
+
+	va_start(arg, fmt);
+	vprintf(fmt, arg);
+	va_end(arg);
+}
 
 int main(int argc, char** argv) {
 	if (argc < 2) {
@@ -104,9 +133,17 @@ int main(int argc, char** argv) {
 			++i;
 			show_char = !show_char;
 		}
-		else if (strcmp(argv[i], "-l") == 0) {
+		else if (streq(argv[i], "-l")) {
 			++i;
 			hidelogo = !hidelogo;
+		}
+		else if (streq(argv[i], "-o"))  {
+			++i;
+			output_stream = fopen(argv[i], "w+");
+			if (!output_stream) {
+				fputs(FOPEN_ERR, stderr);
+				return -1;
+			}
 		}
 		else {
 			fprintf(stderr, ARG_ERR, argv[i]);
@@ -114,15 +151,17 @@ int main(int argc, char** argv) {
 		}
 	}
 	
-	puts(!hidelogo ? "\n" PLOGO "\n\n" PINFO : PINFO);
+	stdputs(!hidelogo ? "\n" PLOGO "\n\n" PINFO : PINFO, output_stream);
 	if (!loadHex(bin_file)) {
 		fputs(FOPEN_ERR, stderr);
+		if (output_stream) fclose(output_stream);
 		return -1;
 	}
 	printTable(width_out);
 	free(hex);
 
-	printf("File summary: %s | size: %lu | read: %lu\n", bin_file, file_actual_size, read_bytes);
+	stdprintf(output_stream, "File summary: %s | size: %lu | read: %lu\n", bin_file, file_actual_size, read_bytes);
+	if (output_stream) fclose(output_stream);
 
 	return 0;
 }
@@ -140,7 +179,8 @@ int loadHex(char* path) {
 	rewind(file);
 
 	if (beg_out > file_actual_size) {
-		exit(-1);
+		fclose(file);
+		return 0;
 	}
 
 	fseek(file, beg_out, SEEK_SET);
@@ -148,7 +188,8 @@ int loadHex(char* path) {
 	hex = (char*)malloc(size_hex);
 	if (!hex) {
 		puts(MEM_ERR);
-		exit(-1);
+		fclose(file);
+		return 0;
 	}
 	read_bytes = fread(hex, 1, size_hex, file);
 	fclose(file);
@@ -159,59 +200,58 @@ int loadHex(char* path) {
 void printTable(int width) {
 	// A nested funtion, as supported by GCC
 	void draw_line() {
-		putc('\n', stdout);
+		stdputc('\n', output_stream);
 		for (int col = 0; col < (2 + ADDRESS_WIDTH + 3 + (width * 3) - 1 + (show_char ? (3 + width) : 0)); ++col) {
-			putc('-', stdout);
+			stdputc('-', output_stream);
 		}
-		putc('\n', stdout);
+		stdputc('\n', output_stream);
 	}
 	
 	uint64_t rowCount = ceil((float)size_hex / (float)width);
 
-	printf("Region: 0x%0" strmacro(ADDRESS_WIDTH) "lX - 0x%0" strmacro(ADDRESS_WIDTH) "lX (showing %lu bytes, omitting %lu bytes) -->", beg_out, beg_out + size_hex, size_hex, file_actual_size - size_hex);
+	stdprintf(output_stream, "Region: 0x%0" strmacro(ADDRESS_WIDTH) "lX - 0x%0" strmacro(ADDRESS_WIDTH) "lX (showing %lu bytes, omitting %lu bytes) -->", beg_out, beg_out + size_hex, size_hex, file_actual_size - size_hex);
 
 	draw_line();
-	printf("%-*s", ADDRESS_WIDTH + 2 + 3, "OFFSET:");
+	stdprintf(output_stream, "%-*s", ADDRESS_WIDTH + 2 + 3, "OFFSET:");
 
 	for (int col = 0; col < width; ++col) {
-		printf("%02X ", col);
+		stdprintf(output_stream, "%02X ", col);
 	}
 
 	if (show_char) {
-		printf("%2c", ' ');
+		stdprintf(output_stream, "%2c", ' ');
 		for (int col = 0; col < width; ++col) {
-			printf("%01X", col % 16);
+			stdprintf(output_stream, "%01X", col % 16);
 		}
 	}
 	
 	draw_line();
 
 	for (uint64_t row = 0; row < rowCount; ++row) {
-		printf("0x%0" strmacro(ADDRESS_WIDTH) "X | ", (unsigned)(beg_out + width * row));
+		stdprintf(output_stream, "0x%0" strmacro(ADDRESS_WIDTH) "X | ", (unsigned)(beg_out + width * row));
 		for (int col = 0; col < width; ++col) {
 			size_t elem = width * row + col;
-			if (elem <= size_hex)
-				printf("%02X ", (unsigned char)hex[elem]);
+			if (elem < size_hex)
+				stdprintf(output_stream, "%02X ", (unsigned char)hex[elem]);
 			else
-				printf("%3c", ' ');
+				stdprintf(output_stream, "%3c", ' ');
 		}
 		if (show_char) {
-			printf("| ");
+			stdprintf(output_stream, "| ");
 			for (int col = 0; col < width; ++col) {
 				size_t elem = width * row + col;
 				char hex_char = hex[elem];
 				
-				if (elem <= size_hex)
+				if (elem < size_hex) {
 					if (hex_char < 32 || hex_char == 0x7F)
-						putc('.', stdout);
+						stdputc('.', output_stream);
 					else
-						putc(hex_char, stdout);
-				else
-					putc(' ', stdout);
+						stdputc(hex_char, output_stream);
+				}
 			}
 		}
 
-		if (row != rowCount - 1) putc('\n', stdout);
+		if (row != rowCount - 1) stdputc('\n', output_stream);
 	}
 
 	draw_line();
