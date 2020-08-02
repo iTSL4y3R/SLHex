@@ -17,14 +17,25 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <string.h>
-#include <stdio.h>
+#ifdef __cplusplus
+#	include <cstring>
+#	include <cstdio>
 
-#include <stdlib.h>
-#include <math.h>
+#	include <cstdlib>
+#	include <cmath>
 
-#include <stdint.h>
-#include <stdarg.h>
+#	include <cstdint>
+#	include <cstdarg>
+#else
+#	include <string.h>
+#	include <stdio.h>
+
+#	include <stdlib.h>
+#	include <math.h>
+
+#	include <stdint.h>
+#	include <stdarg.h>
+#endif
 
 // Macros for messages
 
@@ -75,6 +86,7 @@ FILE* output_stream = NULL; // where the output goes
 // Forward declarations 
 int  main(int argc, char** argv);
 int  loadHex(char*);
+void draw_line(uint16_t width);
 void printTable(int width);
 
 //Functions to both output to stdout and a given file.
@@ -118,7 +130,7 @@ int main(int argc, char** argv) {
 		}
 		else if (streq(argv[i], "-f")) {
 			++i;
-			bin_file = malloc(strlen(argv[i]));
+			bin_file = (char*)malloc(strlen(argv[i]));
 			strcpy(bin_file, argv[i]);
 		}
 		else if (streq(argv[i], "-s")) {
@@ -197,21 +209,22 @@ int loadHex(char* path) {
 	return 1;
 }
 
-void printTable(int width) {
-	// A nested funtion, as supported by GCC
-	void draw_line() {
-		stdputc('\n', output_stream);
-		for (int col = 0; col < (2 + ADDRESS_WIDTH + 3 + (width * 3) - 1 + (show_char ? (3 + width) : 0)); ++col) {
-			stdputc('-', output_stream);
-		}
-		stdputc('\n', output_stream);
+void draw_line(uint16_t width) {
+	stdputc('\n', output_stream);
+	for (uint16_t col = 0; col < width; ++col) {
+		stdputc('-', output_stream);
 	}
+	stdputc('\n', output_stream);
+}
+
+void printTable(int width) {
+	const uint16_t line_width = 2 + ADDRESS_WIDTH + 3 + (width * 3) - 1 + (show_char ? (3 + width) : 0);
 	
 	uint64_t rowCount = ceil((float)size_hex / (float)width);
 
 	stdprintf(output_stream, "Region: 0x%0" strmacro(ADDRESS_WIDTH) "lX - 0x%0" strmacro(ADDRESS_WIDTH) "lX (showing %lu bytes, omitting %lu bytes) -->", beg_out, beg_out + size_hex, size_hex, file_actual_size - size_hex);
 
-	draw_line();
+	draw_line(line_width);
 	stdprintf(output_stream, "%-*s", ADDRESS_WIDTH + 2 + 3, "OFFSET:");
 
 	for (int col = 0; col < width; ++col) {
@@ -225,7 +238,7 @@ void printTable(int width) {
 		}
 	}
 	
-	draw_line();
+	draw_line(line_width);
 
 	for (uint64_t row = 0; row < rowCount; ++row) {
 		stdprintf(output_stream, "0x%0" strmacro(ADDRESS_WIDTH) "X | ", (unsigned)(beg_out + width * row));
@@ -254,5 +267,5 @@ void printTable(int width) {
 		if (row != rowCount - 1) stdputc('\n', output_stream);
 	}
 
-	draw_line();
+	draw_line(line_width);
 }
