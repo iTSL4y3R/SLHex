@@ -119,50 +119,54 @@ int main(int argc, char** argv) {
 	if (argc < 2) {
 		return -1;
 	}
-	for (uint16_t i = 1; i < argc; ++i) {
-		if (streq(argv[i], "--help")) {
-			puts(PINFO HELPINFO);
-			return 0;
-		}
-		else if (streq(argv[i], "-w")) {
-			++i;
-			width_out = atoi(argv[i]);
-		}
-		else if (streq(argv[i], "-f")) {
-			++i;
-			bin_file = (char*)malloc(strlen(argv[i]));
-			strcpy(bin_file, argv[i]);
-		}
-		else if (streq(argv[i], "-s")) {
-			++i;
-			size_hex = atol(argv[i]);
-		}
-		else if (streq(argv[i], "-b")) {
-			++i;
-			sscanf(argv[i], "%li", &beg_out);
-		}
-		else if (streq(argv[i], "-h")) {
-			++i;
-			show_char = !show_char;
-		}
-		else if (streq(argv[i], "-l")) {
-			++i;
-			hidelogo = !hidelogo;
-		}
-		else if (streq(argv[i], "-o"))  {
-			++i;
-			output_stream = fopen(argv[i], "w+");
-			if (!output_stream) {
-				fputs(FOPEN_ERR, stderr);
-				return -1;
+	size_t i;
+	for (i = 0; i < argc; ++i) {
+		if (argv[i][0] == '-') {
+			while (*argv[i] != 0x0) {
+				switch (*argv[i]) {
+					case 'w': {
+						++argv[i];
+						width_out = (*argv[i] == 0x0 ? atoi(argv[++i]) : atoi(argv[i]));
+						break;
+					}
+					case 's': {
+						++argv[i];
+						size_hex = (*argv[i] == 0x0 ? atol(argv[++i]) : atol(argv[i]));
+						break;
+					}
+					case 'f': {
+						++argv[i];
+						size_t alsize = strlen(*argv[i] == 0x0 ? argv[++i] : argv[i]);   
+						bin_file = (char*)malloc(alsize);
+						strcpy(bin_file, argv[i]);
+						break;
+					}
+					case 'b': {
+						++argv[i];
+						sscanf((*argv[i] == 0x0 ? argv[++i] : argv[i]), "%li", &beg_out);
+						break;
+					}
+					case 'h': {
+						show_char = !show_char;
+						break;
+					}
+					case 'l': {
+						hidelogo = !hidelogo; 
+						break;
+					}
+					case 'o': {
+						++argv[i];
+						output_stream = fopen((*argv[i] == 0x0 ? argv[++i] : argv[i]), "w+");
+						if (!output_stream) {
+							fputs(FOPEN_ERR, stderr);
+							return -1;
+						}
+					}
+				}
+				++argv[i];
 			}
 		}
-		else {
-			fprintf(stderr, ARG_ERR, argv[i]);
-			return -1;
-		}
 	}
-	
 	stdputs(!hidelogo ? "\n" PLOGO "\n\n" PINFO : PINFO, output_stream);
 	if (!loadHex(bin_file)) {
 		fputs(FOPEN_ERR, stderr);

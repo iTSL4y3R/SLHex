@@ -4,12 +4,14 @@ FILES=hex.c
 OBJECT=hex.o
 EXEC=hex
 
-.PHONY: all clear
+.PHONY: all clear install
 all: $(OBJECT) $(EXEC)
 $(OBJECT): $(FILE)
 	$(CC) $(CFLAGS) $(FILES)
 $(EXEC): $(OBJECT)
 	$(CC) $(OBJECT) -o $(EXEC)
-clear:
+clean:
 	rm $(OBJECT)
 	rm $(EXEC)
+install: $(EXEC)
+	cp $(EXEC) /usr/bin/$(EXEC)
